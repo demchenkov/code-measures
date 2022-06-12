@@ -1,6 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using Console.Extensions;
 using Console.Models;
+using Microsoft.CodeAnalysis.CSharp;
 
 namespace Console.Services;
 
@@ -9,19 +10,16 @@ public class FileProcessor
     private readonly string _oneLineCommentKey = "//";
     private readonly string _multiLineCommentStartKey = "/*";
     private readonly string _multiLineCommentEndKey = "*/";
-    private readonly SourceFinderSettings _sourceFinderSettings;
 
 
     public FileProcessor(
         string? oneLineCommentKey = null,
         string? multiLineCommentStartKey = null,
-        string? multiLineCommentEndKey = null,
-        SourceFinderSettings? sourceFinderSettings = null)
+        string? multiLineCommentEndKey = null)
     {
         _oneLineCommentKey = oneLineCommentKey ?? _oneLineCommentKey;
         _multiLineCommentStartKey = multiLineCommentStartKey ?? _multiLineCommentStartKey;
         _multiLineCommentEndKey = multiLineCommentEndKey ?? _multiLineCommentEndKey;
-        _sourceFinderSettings = sourceFinderSettings ?? new SourceFinderSettings();
     }
     
     public CodeStatistic Process(string fileContent)
@@ -42,23 +40,19 @@ public class FileProcessor
     private int CountSourceLines(List<string> lines)
     {
         var fullSource = string.Join(Environment.NewLine, lines);
-        var sourceWithoutComments = Regex.Replace(fullSource, _sourceFinderSettings.RemoveCommentsPattern, "$1");
-
-        int FindUsageCount(string pattern) => Regex.Matches(sourceWithoutComments!, pattern, RegexOptions.Multiline).Count;
-
-        var selectionStatementsCount = FindUsageCount(_sourceFinderSettings.SelectionStatementPattern) ;
-        var iterationStatementsCount = FindUsageCount(_sourceFinderSettings.IterationStatementPattern);
-        var jumpStatementsCount = FindUsageCount(_sourceFinderSettings.JumpStatementPattern);
-
-        var emptyStatementsCount = FindUsageCount(_sourceFinderSettings.EmptyStatementPattern);
         
-        var expressionStatementsCount = FindUsageCount(_sourceFinderSettings.FunctionCallStatementPattern)
-                                        + FindUsageCount(_sourceFinderSettings.AssigmentStatementPattern)
-                                        + emptyStatementsCount;
+        var root = CSharpSyntaxTree.ParseText(fullSource).GetRoot();
+        var nodes = root.DescendantNodes().ToArray();
+        
 
-        var generalStatementsCount = FindUsageCount(_sourceFinderSettings.GeneralStatementPattern);
-        var blockDelimitersCount = emptyStatementsCount - selectionStatementsCount;
 
+        var selectionStatementsCount = nodes.Count(x => x.Kind().IsSelectionStatement());
+        var iterationStatementsCount = nodes.Count(x => x.Kind().IsIterationStatement());
+        var jumpStatementsCount = nodes.Count(x => x.Kind().IsJumpStatement());
+        var expressionStatementsCount = nodes.Count(x => x.Kind() == SyntaxKind.IsExpression);
+        var generalStatementsCount = nodes.Count(x => x.Kind().IsGeneralStatement());
+        var blockDelimitersCount = nodes.Count(x => x.Kind() == SyntaxKind.Block);
+        
         return selectionStatementsCount
                + iterationStatementsCount
                + jumpStatementsCount

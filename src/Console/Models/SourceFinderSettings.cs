@@ -1,14 +1,11 @@
-﻿namespace Console.Models;
+﻿using Microsoft.CodeAnalysis.CSharp;
 
-public class SourceFinderSettings
+namespace Console.Models;
+
+public static class SourceFinderSettings
 {
-    public string RemoveCommentsPattern { get; set; } = @"(@(?:""[^""]*"")+|""(?:[^""\n\\]+|\\.)*""|'(?:[^'\n\\]+|\\.)*')|//.*|/\*(?s:.*?)\*/";
-    
-    public string SelectionStatementPattern { get; set; } = @"if|else if|else|\?|try|catch|switch";
-    public string IterationStatementPattern { get; set; } = @"do[\s\S]*?while";
-    public string JumpStatementPattern { get; set; } = @"return|break|goto|exit|continue|throw";
-    public string FunctionCallStatementPattern { get; set; } = @"\w+\([\s\S]*?\)";
-    public string AssigmentStatementPattern { get; set; } = @"[^=]=[^=>]";
-    public string EmptyStatementPattern { get; set; } = @"\{\s*\}";
-    public string GeneralStatementPattern { get; set; } = @";";
+    public static bool IsSelectionStatement(this SyntaxKind kind) => kind is >= SyntaxKind.IfStatement and <= SyntaxKind.FinallyClause;
+    public static bool IsIterationStatement (this SyntaxKind kind) => kind is >= SyntaxKind.WhileStatement and <= SyntaxKind.ForEachStatement;
+    public static bool IsJumpStatement(this SyntaxKind kind) => kind is >= SyntaxKind.GotoStatement and <= SyntaxKind.ThrowStatement;
+    public static bool IsGeneralStatement(this SyntaxKind kind) => kind is SyntaxKind.SemicolonToken;
 }
